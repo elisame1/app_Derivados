@@ -315,7 +315,6 @@ with tab1:
 # Contenido para la pestaña de Análisis
 with tab2:
     finviz_data = get_finviz_dataframe(filtros='')
-    finviz_data.info()
 
     selected_pill = st.pills(
         "Industria",

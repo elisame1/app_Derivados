@@ -290,6 +290,8 @@ def get_news_for_ticker(ticker_symbol):
     try:
         ticker = yf.Ticker(ticker_symbol)
         news = ticker.news
+
+        print(ticker)
         
         if news:
             news_df = pd.DataFrame(news)
