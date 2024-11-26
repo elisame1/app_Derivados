@@ -3,11 +3,11 @@ from util.functions import (
     risk_calculator_tab, 
     create_interactive_visualizations, 
     display_option_price_factors, 
-    create_risk_matrix,
+    #create_risk_matrix,
     show_risk_explanation
 )
 from util.risk_matrix import calculate_impact_score, calculate_probability_score, create_matrix
-from util.anthropic_util import display_chat_interface
+from util.anthropic_util import display_chat_interface, get_claude_response, initialize_claude
 from util.finviz import INDUSTRIES, get_finviz_dataframe
 
 import streamlit as st
@@ -18,22 +18,25 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import norm
 import plotly.graph_objects as go
-import plotly.graph_objects as go
+
 
 from datetime import datetime, timedelta
+
+with st.sidebar:
+    display_chat_interface()
 
 
 st.title("📈 Guía de derivados para principantes")
 st.markdown("### Tu compañero para aprender a invertir en derivados")
 
 # Crear las pestañas
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📚 Educación", 
-    "📊 Análisis de Datos", 
+    "🔍 Análisis de Riesgo", 
     "🎯 Herramientas de Decisión",
-    "📄 Noticias",
-    "💬 Consulta la IA",
-    "🔍 Análisis de Riesgo"
+    "📄 Noticias"
+    #"💬 Consulta la IA",
+    
 ])
 
 #1er TAB --------------------------------------------------------------------------------------------------------------
@@ -77,6 +80,8 @@ css = """
 </style>
 """
 
+
+
 # Contenido para la pestaña Educativa
 with tab1:
     # Inyectar CSS
@@ -94,7 +99,7 @@ with tab1:
             options=[
                 "Conceptos Básicos",
                 "Tipos de Instrumentos",
-                "Matriz de Riesgo",
+                #"Matriz de Riesgo",
                 "Factores de Precio"
             ],
             label_visibility="collapsed",
@@ -116,18 +121,6 @@ with tab1:
                 • **Fecha de Vencimiento**: Momento en que el contrato expira y se debe ejecutar
                 
                 • **Precio de Ejercicio (Strike Price)**: Precio acordado para la operación futura
-                """)
-
-            with st.expander("📊 Tipos de Derivados"):
-                st.write("""
-                • **Futuros**: Contratos que obligan a comprar/vender un activo en fecha futura a precio establecido        
-                • **Forwards**: Similar a futuros pero personalizado y negociado fuera de bolsa  
-                • **Opciones**: Derecho (no obligación) de comprar/vender a precio establecido
-
-                    • Call: Derecho a comprar
-                    • Put: Derecho a vender
-                         
-                • **Swaps**: Intercambio de flujos financieros entre partes
                 """)
             
             with st.expander("⚠️ Conceptos de Riesgo"):
@@ -171,24 +164,147 @@ with tab1:
                     • Tasas de interés
                 """)
                 
-        # [El resto del código sigue igual...]
+         #[El resto del código sigue igual...]
         elif current_section == "Tipos de Instrumentos":
             st.subheader("🔧 Tipos de Instrumentos")
-            instrument_tab1, instrument_tab2, instrument_tab3 = st.tabs([
-                "Opciones 📊", 
-                "Futuros 📈", 
-                "Forwards 🔄"
-            ])
+            selected_pill = st.pills("", options=["Opciones", "Futuros", "Forwards"], default="Opciones")
             
-            with instrument_tab1:
+            if selected_pill == "Opciones":
                 st.write("""
                 ### Opciones Financieras
-                [...]
+                **¿Qué son?**  
+                Contratos que dan el derecho (no la obligación) de comprar (Call) o vender (Put) un activo a un precio establecido.
+                
+                #### Call Options 
+                **Ejemplo:**  
+                - Compras una Call de Apple a strike 150, pagando 5 de prima
+                - Si Apple sube a 170, ejerces y ganas 15 (170 - 150 -  prima)
+                - Si Apple baja a 140, no ejerces y solo pierdes la prima (5)
+                """)
+
+                # Diagrama Payoff Call
+                x = list(range(130, 180, 5))
+                y_long_call = [max(0, precio - 150) - 5 for precio in x]
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=x, y=y_long_call, name='Comprador Call'))
+                fig.add_hline(y=0, line_dash="dash", line_color="gray")
+                fig.add_vline(x=150, line_dash="dash", line_color="gray")
+                
+                fig.update_layout(
+                    title='Payoff de Call Option',
+                    xaxis_title='Precio del Subyacente',
+                    yaxis_title='Beneficio/Pérdida',
+                    showlegend=True
+                )
+                st.plotly_chart(fig)
+    
+                st.write("""
+                #### Put Options 
+                **Ejemplo:**  
+                - Compras una Put de Apple a strike 150, pagando 5 de prima
+                - Si Apple baja a 130, ejerces y ganas 15 (150 - 130 - 5 prima)
+                - Si Apple sube a 160, no ejerces y solo pierdes la prima (5)
+                """)
+            
+                # Diagrama Payoff Put
+                x = list(range(130, 180, 5))
+                y_long_put = [max(0, 150 - precio) - 5 for precio in x]
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=x, y=y_long_put, name='Comprador Put'))
+                fig.add_hline(y=0, line_dash="dash", line_color="gray")
+                fig.add_vline(x=150, line_dash="dash", line_color="gray")
+                
+                fig.update_layout(
+                    title='Payoff de Put Option',
+                    xaxis_title='Precio del Subyacente',
+                    yaxis_title='Beneficio/Pérdida',
+                    showlegend=True
+                )
+                st.plotly_chart(fig)
+                
+                st.write("""
+                ### Swaps 
+                **¿Qué son?**  
+                Acuerdos para intercambiar flujos financieros futuros entre dos partes.
+                
+                **Ejemplo Práctico:**  
+                - Empresa A tiene deuda a tasa variable Libor + 2%
+                - Empresa B tiene deuda a tasa fija 5%
+                - Acuerdan swap:
+                    * A paga a B tasa fija 5%
+                    * B paga a A tasa variable Libor + 2%
+                
+                **Tipos comunes:**
+                - Swaps de tasas de interés (IRS)
+                - Swaps de divisas
+                - Swaps de materias primas
+                         
+
+
+                  ### 💡 Consejos para Principiantes
+                    1. Comienza con opciones simples (Calls y Puts individuales)
+                    2. Entiende bien el riesgo antes de operar
+                    3. Usa stops para limitar pérdidas
+                    4. Practica con papel (simulador) antes de usar dinero real
+                    5. No inviertas más de lo que puedes permitirte perder
+                    
+                """)
+
+            if selected_pill == "Futuros":
+                st.write("""
+                ### Futuros
+                **¿Qué son?**  
+                Contratos que obligan a comprar o vender un activo en una fecha futura a un precio establecido hoy.
+                
+                **Ejemplo Práctico:** 
+                
+                - Un agricultor quiere asegurar el precio de venta de su cosecha de maíz
+                - Hoy (marzo) el maíz cotiza a $400/tonelada
+                - Firma un futuro para vender 100 toneladas en septiembre a $420/tonelada
+                - Se asegura un precio de venta sin importar si el precio sube o baja
+    
+                **Diagrama de Payoff:**
+                """)
+
+                # Crear diagrama de payoff para Futuros
+                x = list(range(300, 600, 50))
+                y_long = [precio - 420 for precio in x]
+                y_short = [420 - precio for precio in x]
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=x, y=y_long, name='Comprador (Long)'))
+                fig.add_trace(go.Scatter(x=x, y=y_short, name='Vendedor (Short)'))
+                fig.add_hline(y=0, line_dash="dash", line_color="gray")
+                fig.add_vline(x=420, line_dash="dash", line_color="gray")
+                
+                fig.update_layout(
+                    title='Payoff de Futuros',
+                    xaxis_title='Precio del Subyacente',
+                    yaxis_title='Beneficio/Pérdida',
+                    showlegend=True
+                )
+                st.plotly_chart(fig)
+
+            if selected_pill == "Forwards":
+                st.write("""
+                ### Forwards
+                **¿Qué son?**  
+                Similares a los futuros pero personalizados y negociados directamente entre partes (OTC - Over The Counter).
+                
+                **Ejemplo Práctico:**  
+                - Una empresa europea necesita comprar $1 millón en 6 meses
+                - Acuerda con su banco un forward EUR/USD a 1.10
+                - En 6 meses comprará $1 millón a 1.10 EUR/USD sin importar el tipo de cambio del mercado
+                
+                *El diagrama de payoff es similar al de futuros, pero el contrato es privado y personalizado.*
+    
                 """)
                 
-        elif current_section == "Matriz de Riesgo":
-            st.subheader("🎯 Matriz de Riesgo - Derivados Financieros")
-            create_risk_matrix()
+        #elif current_section == "Matriz de Riesgo":
+            #st.subheader("🎯 Matriz de Riesgo - Derivados Financieros")
+            #create_risk_matrix()
             
         elif current_section == "Factores de Precio":
             st.subheader("💰 Los 8 Factores que Afectan el Precio de las Opciones")
@@ -198,87 +314,69 @@ with tab1:
 
 # Contenido para la pestaña de Análisis
 with tab2:
-    st.header("Análisis de Datos")
-    st.markdown("""
-    Aquí podrás:
-    - Visualizar precios históricos
-    - Analizar indicadores técnicos
-    - Estudiar la volatilidad
-    """)
+    finviz_data = get_finviz_dataframe(filtros='')
+    finviz_data.info()
 
-#MULTISELECT
-
-    # Lista de empresas del S&P 500 con sus tickers e industrias
-    sp500_companies = {
-        'AAPL': {'name': 'Apple Inc.', 'industry': 'Technology'},
-        'MSFT': {'name': 'Microsoft Corporation', 'industry': 'Technology'},
-        'AMZN': {'name': 'Amazon.com Inc.', 'industry': 'Consumer Discretionary'},
-        'NVDA': {'name': 'NVIDIA Corporation', 'industry': 'Technology'},
-        'GOOGL': {'name': 'Alphabet Inc. (Google) Class A', 'industry': 'Technology'},
-        'GOOG': {'name': 'Alphabet Inc. (Google) Class C', 'industry': 'Technology'},
-        'META': {'name': 'Meta Platforms Inc.', 'industry': 'Communication Services'},
-        'BRK.B': {'name': 'Berkshire Hathaway Inc.', 'industry': 'Financials'},
-        'TSLA': {'name': 'Tesla Inc.', 'industry': 'Consumer Discretionary'},
-        'UNH': {'name': 'UnitedHealth Group Inc.', 'industry': 'Healthcare'},
-        'LLY': {'name': 'Eli Lilly and Company', 'industry': 'Healthcare'},
-        'JPM': {'name': 'JPMorgan Chase & Co.', 'industry': 'Financials'},
-        'V': {'name': 'Visa Inc.', 'industry': 'Financials'},
-        'XOM': {'name': 'Exxon Mobil Corporation', 'industry': 'Energy'},
-        'AVGO': {'name': 'Broadcom Inc.', 'industry': 'Technology'},
-        'PG': {'name': 'Procter & Gamble Company', 'industry': 'Consumer Staples'},
-        'MA': {'name': 'Mastercard Incorporated', 'industry': 'Financials'},
-        'HD': {'name': 'Home Depot Inc.', 'industry': 'Consumer Discretionary'},
-        'CVX': {'name': 'Chevron Corporation', 'industry': 'Energy'},
-        'ABBV': {'name': 'AbbVie Inc.', 'industry': 'Healthcare'},
-        'MRK': {'name': 'Merck & Co. Inc.', 'industry': 'Healthcare'},
-        'PFE': {'name': 'Pfizer Inc.', 'industry': 'Healthcare'},
-        'COST': {'name': 'Costco Wholesale Corporation', 'industry': 'Consumer Staples'},
-        'WMT': {'name': 'Walmart Inc.', 'industry': 'Consumer Staples'},
-        'KO': {'name': 'Coca-Cola Company', 'industry': 'Consumer Staples'}
-    }
-
-    # Obtener lista única de industrias
-    industries = sorted(list(set(company['industry'] for company in sp500_companies.values())))
-
-    # Multiselect de industrias
-    selected_industries = st.multiselect(
-        'Selecciona las industrias:',
-        options=industries,
-        default=industries,  # Por defecto todas las industrias seleccionadas
-        key='industry_selector'
+    selected_pill = st.pills(
+        "Industria",
+        options=INDUSTRIES,
+        selection_mode="single"
     )
 
-    # Filtrar empresas por industrias seleccionadas
-    if selected_industries:
-        options = [
-            f"{ticker} - {data['name']}"
-            for ticker, data in sp500_companies.items()
-            if data['industry'] in selected_industries
-        ]
-    else:
-        options = []  # Si no hay industrias seleccionadas, no mostrar empresas
+    if selected_pill:
+        finviz_data_filtered = finviz_data[0:0]
 
-    # Crear multiselect para empresas
-    selected_companies = st.multiselect(
-        'Selecciona las empresas que deseas analizar:',
-        options=options,
-        default=[],
-        key='company_selector'
-    )
+        # Multiselect de tickers
+        selected_tickers = st.multiselect(
+            'Selecciona los Tickers (ej. AAPL):',
+            options=finviz_data[finviz_data['Sector'] == selected_pill][['Company']].to_dict(orient="index").keys(),
+            placeholder='Buscar ticker'
+        )
 
-    # Mostrar empresas seleccionadas
-    if selected_companies:
-        st.write("### Empresas seleccionadas:")
-        for company in selected_companies:
-            ticker = company.split(" - ")[0]
-            industry = sp500_companies[ticker]['industry']
-            st.write(f"{company} ({industry})")
+        if selected_pill != 'All' and selected_tickers:
+            finviz_data_filtered = finviz_data[finviz_data['Sector'] == selected_pill].loc[selected_tickers]
+
+        # st.dataframe(finviz_data_filtered, use_container_width=True)
         
-        # Extraer solo los tickers de las selecciones
-        selected_tickers = [company.split(" - ")[0] for company in selected_companies]
-        
-        # Guardar los tickers seleccionados en session state para uso posterior
-        st.session_state['selected_tickers'] = selected_tickers
+        # MATRIZ RIESGO ------------------------------------------------------------------------------------------
+        try:
+            # Display risk matrix
+            fig = create_matrix(finviz_data_filtered)
+            st.plotly_chart(fig)
+            
+            # Display risk categories
+            st.subheader("Categorización de Riesgo por Ticker")
+            
+            risk_df = pd.DataFrame({
+                'Company': finviz_data_filtered['Company'],
+                'Impact Score': calculate_impact_score(finviz_data_filtered),
+                'Probability Score': calculate_probability_score(finviz_data_filtered),
+                'Beta': finviz_data_filtered['Beta'],
+                'ROA': finviz_data_filtered['Return on Assets'],
+                'ROE': finviz_data_filtered['Return on Equity'],
+                'ROI': finviz_data_filtered['Return on Investment'],
+                'Performance (Year)': finviz_data_filtered['Performance (Year)'],
+            })
+            
+            def categorize_risk(row):
+                if row['Impact Score'] > 0.5 and row['Probability Score'] > 0.5:
+                    return "Alto riesgo"
+                elif row['Impact Score'] > 0.5:
+                    return "Riesgo de impacto"
+                elif row['Probability Score'] > 0.5:
+                    return "Riesgo de evento adverso"
+                else:
+                    return "Bajo riesgo"
+            
+            risk_df['Risk Category'] = risk_df.apply(categorize_risk, axis=1)
+            st.dataframe(risk_df)
+            
+        except Exception as e:
+            st.error(f"Error al procesar el archivo: {str(e)}")
+    
+    with st.expander("¿Cómo interpretar la matriz?"):
+        st.write(show_risk_explanation())
+
 
     #3er TAB --------------------------------------------------------------------------------------------------------------
 
@@ -317,14 +415,12 @@ with tab4:
             news_dfs = get_news_for_ticker(ticker_input)
             
             if news_dfs:
-                st.success(f"Últimas noticias encontradas para {ticker_input}")
-
                 def display_news_column(df_list, idx):
                     for _, row in df_list[idx].iterrows():
-                        if 'thumbnail' in row and row['thumbnail'] and row['thumbnail'].get('resolutions'):
+                        if 'thumbnail' in row and not pd.isna(row['thumbnail']) and row['thumbnail'].get('resolutions'):
                             # Obtener la primera resolución disponible
                             img_url = row['thumbnail']['resolutions'][0]['url']
-                            st.image(img_url, use_column_width=True)
+                            st.image(img_url, use_container_width=True)
                         else:
                             # Si no hay imagen, mostrar un placeholder
                             st.markdown("🖼️ *No hay imagen disponible*")
@@ -417,69 +513,10 @@ with tab4:
 #5to tab IA--------------------------------------------------------------------------------------------------------------------------------------------
 
 
-with tab5:
-   display_chat_interface()
+#with tab5:
+ #  display_chat_interface()
 
 
 
 #6to tab ANÁLISIS DE RIESGO----------------------------------------------------------------------------------------------------------------------------------------------------------
     # File uploader
-with tab6:
-    finviz_data = get_finviz_dataframe(filtros='')
-    finviz_data.info()
-
-    selected_pill = st.pills(
-        "Industria",
-        options=INDUSTRIES,
-        selection_mode="single"
-    )
-
-    if selected_pill:
-        finviz_data_filtered = finviz_data[0:0]
-
-        # Multiselect de tickers
-        selected_tickers = st.multiselect(
-            'Selecciona los Tickers (ej. AAPL):',
-            options=finviz_data[finviz_data['Sector'] == selected_pill][['Company']].to_dict(orient="index").keys(),
-            placeholder='Buscar ticker'
-        )
-
-        if selected_pill != 'All' and selected_tickers:
-            finviz_data_filtered = finviz_data[finviz_data['Sector'] == selected_pill].loc[selected_tickers]
-
-        # st.dataframe(finviz_data_filtered, use_container_width=True)
-        
-        # MATRIZ RIESGO ------------------------------------------------------------------------------------------
-        try:
-            # Display risk matrix
-            fig = create_matrix(finviz_data_filtered)
-            st.plotly_chart(fig)
-            
-            # Display risk categories
-            st.subheader("Categorización de Riesgo por Ticker")
-            
-            risk_df = pd.DataFrame({
-                'Company': finviz_data_filtered['Company'],
-                'Impact Score': calculate_impact_score(finviz_data_filtered),
-                'Probability Score': calculate_probability_score(finviz_data_filtered)
-            })
-            
-            def categorize_risk(row):
-                if row['Impact Score'] > 0.5 and row['Probability Score'] > 0.5:
-                    return "Alto riesgo"
-                elif row['Impact Score'] > 0.5:
-                    return "Riesgo de impacto"
-                elif row['Probability Score'] > 0.5:
-                    return "Riesgo de evento adverso"
-                else:
-                    return "Bajo riesgo"
-            
-            risk_df['Risk Category'] = risk_df.apply(categorize_risk, axis=1)
-            st.dataframe(risk_df)
-            
-        except Exception as e:
-            st.error(f"Error al procesar el archivo: {str(e)}")
-    
-    with st.expander("¿Cómo interpretar la matriz?"):
-        st.write(show_risk_explanation())
-

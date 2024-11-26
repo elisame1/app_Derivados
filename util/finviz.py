@@ -66,13 +66,11 @@ def get_finviz_dataframe(filtros):
     }, index=overview_df.index) #nuevo data frame que combina los cuatro anteriores
     
     #merge columns we want to use
-    output_df = output_df.join(performance_df[['Volatility (Month)', 'Average Volume']])
-    output_df = output_df.join(financial_df[['Total Debt/Equity']])
-    output_df = output_df.join(technical_df[['Relative Strength Index (14)']])
+    output_df = output_df.join(performance_df[['Performance (Year)', 'Volatility (Month)', 'Average Volume']])
+    output_df = output_df.join(financial_df[['Total Debt/Equity', 'Return on Assets', 'Return on Equity', 'Return on Investment']])
+    output_df = output_df.join(technical_df[['Beta', 'Relative Strength Index (14)']])
     output_df = output_df.join(ownership_df[['Short Float']])
     output_df = output_df.dropna()
-
-    print(output_df.info())
 
     return output_df
 
