@@ -1,0 +1,10 @@
+.streamlit
+sample_market_data.csv
+data/finviz_financial161.csv
+data/finviz_ownership131.csv
+data/finviz_performance141.csv
+data/finviz_technical111.csv
+data/finviz_technical171.csv
+data/v121.csv
+
+__pycache__
