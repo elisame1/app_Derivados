@@ -324,16 +324,21 @@ with tab2:
 
     if selected_pill:
         finviz_data_filtered = finviz_data[0:0]
+        tickers_options = finviz_data[finviz_data['Sector'] == selected_pill][['Company']].to_dict(orient="index").keys()
+        if selected_pill == 'All':
+            tickers_options = finviz_data[['Company']].to_dict(orient="index").keys()
 
         # Multiselect de tickers
         selected_tickers = st.multiselect(
             'Selecciona los Tickers (ej. AAPL):',
-            options=finviz_data[finviz_data['Sector'] == selected_pill][['Company']].to_dict(orient="index").keys(),
+            options=tickers_options,
             placeholder='Buscar ticker'
         )
 
         if selected_pill != 'All' and selected_tickers:
             finviz_data_filtered = finviz_data[finviz_data['Sector'] == selected_pill].loc[selected_tickers]
+        else:
+            finviz_data_filtered = finviz_data.loc[selected_tickers]
 
         # st.dataframe(finviz_data_filtered, use_container_width=True)
         
