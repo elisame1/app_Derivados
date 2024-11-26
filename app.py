@@ -459,6 +459,7 @@ with tab6:
             st.subheader("Categorización de Riesgo por Ticker")
             
             risk_df = pd.DataFrame({
+                'Company': finviz_data_filtered['Company'],
                 'Impact Score': calculate_impact_score(finviz_data_filtered),
                 'Probability Score': calculate_probability_score(finviz_data_filtered)
             })
